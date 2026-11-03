@@ -127,7 +127,7 @@
       <h2 class="ep-statehead"><span data-draw="st-name">—</span></h2>
       <p class="ep-note">Senate, governor and, for Texas, statewide and competitive U.S. House races. Vote shares appear as results come in.</p>
       <p class="ep-note ep-none" hidden>No Senate or governor race in this state this year.</p>
-      <div class="ep-races dash-skeleton" data-draw="st-races" data-source="races"></div>
+      <div class="ep-races dash-skeleton" data-draw="st-races" data-source="live"></div>
     </section>
   </div>
 
@@ -135,7 +135,7 @@
     <h2>Races to watch</h2>
     <p class="ep-note">Every Senate and governor race Cook doesn't rate Solid, closest first. Click a row to open its state.</p>
     <div class="ep-tablewrap">
-      <table class="ep-table" data-source="races" data-row-key="race_id">
+      <table class="ep-table" data-source="live" data-row-key="race_id">
         <thead><tr>
           <th data-field="race_id">Race</th>
           <th data-field="office" class="ep-hide-narrow">Office</th>
@@ -149,7 +149,7 @@
     </div>
   </section>
 
-  <p class="ep-sources">Ratings: Cook Political Report, Inside Elections and Sabato's Crystal Ball as compiled on Wikipedia; Texas House ratings are 270toWin's consensus. Results are entered from news-desk calls as they are reported.</p>
+  <p class="ep-sources">Ratings: Cook Political Report, Inside Elections and Sabato's Crystal Ball as compiled on Wikipedia; Texas House ratings are 270toWin's consensus. Live votes and calls: <a href="https://civicapi.org">civicAPI</a>, refreshed every 15 minutes from 6pm Central.</p>
 </div>
 
 <script>
@@ -174,11 +174,39 @@
     HI:[0,7],TX:[3,7],FL:[8,7]};
   const pct = d3.format('.1f');
 
+    dash.calc('live', {
+    inputs: ['races', 'results_federal', 'results_governor'],
+    title: 'Races with live results',
+    description: 'Each race’s candidates and ratings, with civicAPI’s latest votes, reporting and winner call joined on its race id.',
+    fn: (races, results_federal, results_governor) => {
+      const P = {Democratic: 'D', 'Democratic-Farmer-Labor': 'D', 'DEM/NON': 'D', Republican: 'R'};
+      const byRace = d3.group([...results_federal, ...results_governor], (c) => c.race_id);
+      return races.map((r) => {
+        const cs = byRace.get(r.civic_id) || [];
+        const votes = d3.sum(cs, (c) => c.votes);
+        const top = (p) => d3.greatest(cs.filter((c) => P[c.party] === p), (c) => c.votes);
+        const d = top('D'), rp = top('R'), w = cs.find((c) => c.winner);
+        const dPct = votes && d ? d.percent : null, rPct = votes && rp ? rp.percent : null;
+        return {
+          ...r,
+          dem_pct: dPct, rep_pct: rPct,
+          other_pct: votes ? Math.max(0, 100 - (dPct || 0) - (rPct || 0)) : null,
+          pct_reporting: votes && cs.length ? cs[0].percent_reporting : null,
+          winner: w ? w.name || w.candidate : null,
+          winner_party: w ? (P[w.party] || 'I') : null,
+          status: w ? 'Called' : votes ? 'Counting' : 'Not called',
+          called_by: w ? 'civicAPI' : null,
+          result_updated: cs.length ? cs[0].last_updated : null
+        };
+      });
+    }
+  });
+
   dash.calc('state_lean', {
-    inputs: ['races'],
+    inputs: ['live'],
     title: 'Latest lean by state',
     description: 'For each Senate and governor race: the winner’s party once called, otherwise the Cook rating.',
-    fn: (races) => races
+    fn: (live) => live
       .filter((r) => r.chamber === 'Senate' || r.chamber === 'Governor')
       .map((r) => ({
         race_id: r.race_id, state: r.state, chamber: r.chamber,
@@ -187,11 +215,11 @@
   });
 
   dash.calc('seat_strip', {
-    inputs: ['races'],
+    inputs: ['live'],
     title: 'Senate seats in order',
     description: 'All 100 seats: those not up in 2026 (from today’s 53 R, 47 D and independents), called races, then open races by Cook rating.',
-    fn: (races) => {
-      const sen = races.filter((r) => r.chamber === 'Senate');
+    fn: (live) => {
+      const sen = live.filter((r) => r.chamber === 'Senate');
       const upD = sen.filter((r) => r.inc_party === 'D').length;
       const upR = sen.filter((r) => r.inc_party === 'R').length;
       const ord = ['Solid D', 'Likely D', 'Lean D', 'Toss-up', 'Lean R', 'Likely R', 'Solid R'];
@@ -214,12 +242,12 @@
   });
 
   dash.calc('tally', {
-    inputs: ['races'],
+    inputs: ['live'],
     title: 'Headline counts',
     description: 'Seats each party holds or has won, races called, uncalled toss-ups and governorships flipped.',
-    fn: (races) => {
-      const sen = races.filter((r) => r.chamber === 'Senate');
-      const gov = races.filter((r) => r.chamber === 'Governor');
+    fn: (live) => {
+      const sen = live.filter((r) => r.chamber === 'Senate');
+      const gov = live.filter((r) => r.chamber === 'Governor');
       const upD = sen.filter((r) => r.inc_party === 'D').length;
       const upR = sen.filter((r) => r.inc_party === 'R').length;
       return [
@@ -276,7 +304,7 @@
 
   // Senate seat strip
   dash.draw('strip', (el) => {
-    const g = dash.data('seat_strip'), races = dash.data('races');
+    const g = dash.data('seat_strip'), races = dash.data('live');
     settle(el, g.status);
     if (g.status === 'error') return failLine(el);
     if (g.status !== 'ok') { el.replaceChildren(); return; }
@@ -306,7 +334,7 @@
 
   // Tile map
   dash.draw('map', (el) => {
-    const g = dash.data('state_lean'), races = dash.data('races');
+    const g = dash.data('state_lean'), races = dash.data('live');
     settle(el, g.status);
     if (g.status === 'error') return failLine(el);
     if (g.status !== 'ok') { el.replaceChildren(); return; }
@@ -347,7 +375,7 @@
 
   const KIND = {Senate: 0, Governor: 1, 'Texas statewide': 2, House: 3};
   dash.draw('st-races', (el) => {
-    const g = dash.data('races');
+    const g = dash.data('live');
     settle(el, g.status);
     if (g.status === 'error') return failLine(el);
     if (g.status !== 'ok') { el.replaceChildren(); return; }
@@ -394,7 +422,7 @@
 
   // Races to watch
   dash.draw('watch', (el) => {
-    const g = dash.data('races');
+    const g = dash.data('live');
     if (g.status !== 'ok') { el.replaceChildren(); return; }
     const rows = g.data.filter((r) => r.cook && !r.cook.startsWith('Solid'))
       .sort((a, b) => Math.abs(rank(a.cook) - 3) - Math.abs(rank(b.cook) - 3) || a.race_id.localeCompare(b.race_id));
@@ -408,6 +436,27 @@
       return tr;
     }));
   });
+
+  // Live results: the connector answers {rows, errors}; rows are one per candidate.
+  ['results_federal', 'results_governor'].forEach((id) => dash.loader(id, {
+    description: 'The connector’s JSON answer as candidate rows; fails with its own message if no race came back.',
+    fn: ({answer}) => {
+      const o = typeof answer === 'string' ? JSON.parse(answer) : (answer.structuredContent || (answer.content && answer.content[0] && JSON.parse(answer.content[0].text)) || answer);
+      if (!Array.isArray(o.rows)) throw new Error(typeof answer === 'string' ? answer : 'Unexpected answer');
+      if (!o.rows.length && o.errors && o.errors.length) throw new Error(o.errors[0].error);
+      return o.rows;
+    }
+  }));
+
+  // Refresh: hourly until 6pm Central on Nov 3 (00:00 UTC Nov 4), then every 15 minutes.
+  const LIVE_FROM = Date.UTC(2026, 10, 4, 0, 0);
+  const slotNow = () => {
+    const t = Date.now();
+    return t < LIVE_FROM ? 'h' + Math.floor(t / 3600e3) : 'q' + Math.floor(t / 900e3);
+  };
+  const tick = () => { const s = slotNow(); if (dash.params().slot !== s) dash.setParams({slot: s}); };
+  tick();
+  setInterval(tick, 30e3);
 
   // Office toggle
   document.querySelectorAll('.ep-toggle button[data-office]').forEach((b) => {
