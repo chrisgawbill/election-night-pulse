@@ -4,7 +4,7 @@
 
 const API = 'https://civicapi.org/api/v2/race/';
 const UA = 'Mozilla/5.0 (compatible; ElectionNightPulse/1.0; +https://civicapi.org)';
-const MAX_IDS = 120;
+const MAX_IDS = 45; // Workers Free allows 50 subrequests per invocation
 const CACHE_SECONDS = 60; // shields civicAPI when many viewers refresh at once
 
 const TOOL = {
@@ -15,25 +15,20 @@ const TOOL = {
   inputSchema: {
     type: 'object',
     properties: {
-      ids: { type: 'string', description: 'Comma-separated civicAPI race ids, e.g. "87438,55857"' },
+      ids: { type: 'string', description: 'Comma-separated civicAPI race ids (at most 45), e.g. "87438,55857"' },
       slot: { type: 'string', description: 'Optional refresh slot label; ignored by the server, lets clients bust caches.' }
     },
     required: ['ids']
   }
 };
 
-async function fetchRace(id, ctx) {
-  const url = API + id;
-  const cache = caches.default;
-  const key = new Request(url);
-  let res = await cache.match(key);
-  if (!res) {
-    res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
-    if (!res.ok) return { id, error: `civicAPI ${res.status}` };
-    res = new Response(res.body, res);
-    res.headers.set('Cache-Control', `public, max-age=${CACHE_SECONDS}`);
-    ctx.waitUntil(cache.put(key, res.clone()));
-  }
+async function fetchRace(id) {
+  // One subrequest per race; Cloudflare's edge cache holds each answer for CACHE_SECONDS.
+  const res = await fetch(API + id, {
+    headers: { 'User-Agent': UA, Accept: 'application/json' },
+    cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true }
+  });
+  if (!res.ok) return { id, error: `civicAPI ${res.status}` };
   return { id, data: await res.json() };
 }
 
@@ -41,7 +36,8 @@ async function results(args, ctx) {
   const ids = String(args.ids || '')
     .split(',').map((s) => s.trim()).filter((s) => /^\d+$/.test(s)).slice(0, MAX_IDS);
   if (!ids.length) throw new Error('No valid race ids given');
-  const got = await Promise.all(ids.map((id) => fetchRace(id, ctx).catch((e) => ({ id, error: String(e) }))));
+  if (String(args.ids).split(',').filter((x) => x.trim()).length > MAX_IDS) throw new Error(`At most ${MAX_IDS} race ids per call`);
+  const got = await Promise.all(ids.map((id) => fetchRace(id).catch((e) => ({ id, error: String(e) }))));
   const rows = [];
   const errors = [];
   for (const g of got) {

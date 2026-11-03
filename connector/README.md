@@ -27,6 +27,7 @@ In claude.ai, go to **Settings → Connectors → Add custom connector**:
 
 ## Notes
 - Responses are cached for 60 seconds at the edge, so many viewers make few calls to civicAPI.
+- Up to 45 race ids per call: Workers Free allows 50 outbound requests per invocation.
 - civicAPI blocks requests that don't send a browser-style User-Agent, so the Worker sends one.
 - Each viewer of the dashboard needs this connector added to their own account,
   or the owner can share their connection from the dashboard's Sources panel.
