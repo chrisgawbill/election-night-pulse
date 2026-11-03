@@ -53,6 +53,15 @@
 .ep-fail i{width:.375rem;height:.375rem;border-radius:50%;background:var(--color-bad)}
 .ep [data-dash-source-state=refreshing]{opacity:.5;transition:opacity var(--cds-dur-slow)}
 .ep [data-dash-source-state=empty]{color:transparent}
+.ep-tabs{display:flex;gap:var(--cds-gap-xs);border-bottom:1px solid var(--color-border-line)}
+.ep-tabs button{font:inherit;background:transparent;color:var(--color-fg-muted);border:0;border-bottom:2px solid transparent;padding:var(--cds-pad-sm) var(--cds-pad-md);cursor:pointer;margin-bottom:-1px}
+.ep-tabs button[aria-selected=true]{color:var(--color-fg);border-bottom-color:var(--color-fg);font-weight:var(--cds-font-weight-medium)}
+.ep-page{display:flex;flex-direction:column;gap:var(--cds-gap-lg)}
+.ep-page[hidden]{display:none}
+.ep-hgrid{display:flex;flex-wrap:wrap;gap:var(--cds-gap-sm) var(--cds-gap-md);position:relative;min-height:10rem}
+.ep-hstate{display:flex;flex-direction:column;gap:2px;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.ep-hstate svg{display:block}
+.ep-hstate rect{cursor:pointer}
 .ep-sources{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin:0}
 </style>
 
@@ -61,6 +70,13 @@
     <h1 class="ep-title">Election Night Pulse</h1>
     <p class="ep-sub">2026 midterms, Tuesday, November 3. Each state shows its latest lean: the projected winner once a race is called, otherwise the Cook Political Report's final rating (November 2).</p>
   </header>
+
+  <nav class="ep-tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" data-tab="statewide" aria-selected="true">Senate and governors</button>
+    <button type="button" role="tab" data-tab="house" aria-selected="false">House</button>
+  </nav>
+
+  <section class="ep-page" id="statewide" data-page="statewide">
 
   <section class="ep-tiles" id="headline" aria-label="Headline figures">
     <div class="ep-tile">
@@ -149,7 +165,77 @@
     </div>
   </section>
 
-  <p class="ep-sources">Ratings: Cook Political Report, Inside Elections and Sabato's Crystal Ball as compiled on Wikipedia; Texas House ratings are 270toWin's consensus. Live votes and calls: <a href="https://civicapi.org">civicAPI</a>, refreshed every 15 minutes from 6pm Central.</p>
+  </section>
+
+  <section class="ep-page" id="house" data-page="house" hidden>
+    <section class="ep-tiles" id="house-headline" aria-label="House headline figures">
+      <div class="ep-tile">
+        <div class="ep-label">House seats won, Democrats</div>
+        <div class="ep-big ep-dem dash-skeleton" data-draw="t" data-source="house_tally" data-field="value" data-where="metric=h_d">—</div>
+        <div class="ep-label">Called races · 218 for control</div>
+      </div>
+      <div class="ep-tile">
+        <div class="ep-label">House seats won, Republicans</div>
+        <div class="ep-big ep-rep dash-skeleton" data-draw="t" data-source="house_tally" data-field="value" data-where="metric=h_r">—</div>
+        <div class="ep-label">Called races · 218 for control</div>
+      </div>
+      <div class="ep-tile">
+        <div class="ep-label">House races called</div>
+        <div class="ep-big dash-skeleton" data-draw="t" data-source="house_tally" data-field="value" data-where="metric=h_called">—</div>
+        <div class="ep-label">of <span data-draw="t" data-source="house_tally" data-field="value" data-where="metric=h_total">—</span> seats</div>
+      </div>
+      <div class="ep-tile">
+        <div class="ep-label">House toss-ups uncalled</div>
+        <div class="ep-big dash-skeleton" data-draw="t" data-source="house_tally" data-field="value" data-where="metric=h_tossup">—</div>
+        <div class="ep-label">Rated Toss-up by Cook</div>
+      </div>
+      <div class="ep-tile">
+        <div class="ep-label">House seats flipped</div>
+        <div class="ep-big dash-skeleton" data-draw="t" data-source="house_tally" data-field="value" data-where="metric=h_flips">—</div>
+        <div class="ep-label">Called for the other party</div>
+      </div>
+    </section>
+
+    <section class="ep-card" id="house-balance">
+      <h2>House balance</h2>
+      <p class="ep-note">All 435 seats. Called races sit at each end; uncalled races fill the middle, ordered by Cook rating. Hover a seat for its race.</p>
+      <div class="ep-strip dash-skeleton" data-draw="hstrip" data-source="house_strip"></div>
+    </section>
+
+    <div class="ep-grid">
+      <section class="ep-card" id="house-districts">
+        <h2>Every district by state</h2>
+        <p class="ep-note">One square per district, in district order, colored like the map: the winner once called, otherwise Cook's rating. Click a square for its race.</p>
+        <div class="ep-hgrid dash-skeleton" data-draw="hgrid" data-source="house_live"></div>
+      </section>
+
+      <section class="ep-card" id="house-district">
+        <h2 class="ep-statehead"><span data-draw="hd-name">—</span></h2>
+        <p class="ep-note">Candidates, incumbent and ratings. Vote shares appear as results come in.</p>
+        <div class="ep-races dash-skeleton" data-draw="hdetail" data-source="house_live"></div>
+      </section>
+    </div>
+
+    <section class="ep-card" id="house-watch">
+      <h2>House races to watch</h2>
+      <p class="ep-note">Every district Cook doesn't rate Solid, closest first. Click a row to open it.</p>
+      <div class="ep-tablewrap">
+        <table class="ep-table" data-source="house_live" data-row-key="race_id">
+          <thead><tr>
+            <th data-field="race_id">District</th>
+            <th data-field="incumbent" class="ep-hide-narrow">Incumbent</th>
+            <th data-field="dem">Democrat</th>
+            <th data-field="rep">Republican</th>
+            <th data-field="cook">Cook rating</th>
+            <th data-field="status" class="ep-hide-narrow">Status</th>
+          </tr></thead>
+          <tbody data-draw="hwatch"></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <p class="ep-sources">Ratings: Cook Political Report, Inside Elections and Sabato's Crystal Ball as compiled on Wikipedia; Texas House ratings on the first tab are 270toWin's consensus; House tab ratings are Cook, Inside Elections and Sabato via Wikipedia, with seats none of them rate competitive marked Solid for the incumbent's party (or the district's partisan lean when open). Live votes and calls: <a href="https://civicapi.org">civicAPI</a>, refreshed every 15 minutes from 6pm Eastern.</p>
 </div>
 
 <script>
@@ -294,7 +380,7 @@
 
   // Headline numbers
   dash.draw('t', (el) => {
-    const g = dash.data('tally');
+    const g = dash.data(el.dataset.source || 'tally');
     settle(el, g.status);
     if (g.status !== 'ok') { el.textContent = '—'; return; }
     const m = new URLSearchParams(el.dataset.where).get('metric');
@@ -438,7 +524,7 @@
   });
 
   // Live results: the connector answers {rows, errors}; rows are one per candidate.
-  ['results_federal', 'results_governor'].forEach((id) => dash.loader(id, {
+  ['results_federal', 'results_governor', ...d3.range(1, 11).map((i) => 'results_house_' + i)].forEach((id) => dash.loader(id, {
     description: 'The connector’s JSON answer as candidate rows; fails with its own message if no race came back.',
     fn: ({answer}) => {
       const o = typeof answer === 'string' ? JSON.parse(answer) : (answer.structuredContent || (answer.content && answer.content[0] && JSON.parse(answer.content[0].text)) || answer);
@@ -448,8 +534,8 @@
     }
   }));
 
-  // Refresh: hourly until 6pm Central on Nov 3 (00:00 UTC Nov 4), then every 15 minutes.
-  const LIVE_FROM = Date.UTC(2026, 10, 4, 0, 0);
+  // Refresh: hourly until 6pm Eastern on Nov 3 (23:00 UTC), then every 15 minutes.
+  const LIVE_FROM = Date.UTC(2026, 10, 3, 23, 0);
   const slotNow = () => {
     const t = Date.now();
     return t < LIVE_FROM ? 'h' + Math.floor(t / 3600e3) : 'q' + Math.floor(t / 900e3);
@@ -457,6 +543,184 @@
   const tick = () => { const s = slotNow(); if (dash.params().slot !== s) dash.setParams({slot: s}); };
   tick();
   setInterval(tick, 30e3);
+
+  // ---- House ----
+  dash.calc('house_live', {
+    inputs: ['house', 'results_house_1', 'results_house_2', 'results_house_3', 'results_house_4', 'results_house_5', 'results_house_6', 'results_house_7', 'results_house_8', 'results_house_9', 'results_house_10'],
+    title: 'House races with live results',
+    description: 'Each district’s candidates and ratings, with civicAPI’s latest votes, reporting and winner call joined on its race id.',
+    fn: (house, results_house_1, results_house_2, results_house_3, results_house_4, results_house_5, results_house_6, results_house_7, results_house_8, results_house_9, results_house_10) => {
+      const P = {Democratic: 'D', 'Democratic-Farmer-Labor': 'D', 'DEM/NON': 'D', Republican: 'R'};
+      const all = [].concat(results_house_1, results_house_2, results_house_3, results_house_4, results_house_5, results_house_6, results_house_7, results_house_8, results_house_9, results_house_10);
+      const byRace = d3.group(all, (c) => c.race_id);
+      return house.map((r) => {
+        const cs = byRace.get(r.civic_id) || [];
+        const votes = d3.sum(cs, (c) => c.votes);
+        const top = (p) => d3.greatest(cs.filter((c) => P[c.party] === p), (c) => c.votes);
+        const d = top('D'), rp = top('R'), w = cs.find((c) => c.winner);
+        const dPct = votes && d ? d.percent : null, rPct = votes && rp ? rp.percent : null;
+        return {
+          ...r,
+          dem_pct: dPct, rep_pct: rPct,
+          other_pct: votes ? Math.max(0, 100 - (dPct || 0) - (rPct || 0)) : null,
+          pct_reporting: votes && cs.length ? cs[0].percent_reporting : null,
+          winner: w ? w.candidate : null,
+          winner_party: w ? (P[w.party] || 'I') : null,
+          status: w ? 'Called' : votes ? 'Counting' : 'Not called',
+          called_by: w ? 'civicAPI' : null
+        };
+      });
+    }
+  });
+
+  dash.calc('house_tally', {
+    inputs: ['house_live'],
+    title: 'House headline counts',
+    description: 'Seats each party has won, races called, uncalled toss-ups and seats flipped from the incumbent’s party.',
+    fn: (house_live) => [
+      {metric: 'h_d', value: house_live.filter((r) => r.winner_party === 'D').length},
+      {metric: 'h_r', value: house_live.filter((r) => r.winner_party === 'R').length},
+      {metric: 'h_called', value: house_live.filter((r) => r.winner_party).length},
+      {metric: 'h_total', value: house_live.length},
+      {metric: 'h_tossup', value: house_live.filter((r) => !r.winner_party && r.cook === 'Toss-up').length},
+      {metric: 'h_flips', value: house_live.filter((r) => r.winner_party && r.inc_party && r.winner_party !== r.inc_party).length}
+    ]
+  });
+
+  dash.calc('house_strip', {
+    inputs: ['house_live'],
+    title: 'House seats in order',
+    description: 'All 435 seats: called Democratic seats, uncalled races by Cook rating, then called Republican seats.',
+    fn: (house_live) => {
+      const ord = ['Solid D', 'Likely D', 'Lean D', 'Toss-up', 'Lean R', 'Likely R', 'Solid R'];
+      const at = (r) => { const i = ord.indexOf(r); return i < 0 ? 3 : i; };
+      const open = house_live.filter((r) => !r.winner_party).sort((a, b) => at(a.cook) - at(b.cook));
+      const seats = [
+        ...house_live.filter((r) => r.winner_party === 'D').map((r) => ({race_id: r.race_id, group: 'Called D'})),
+        ...open.filter((r) => at(r.cook) < 3).map((r) => ({race_id: r.race_id, group: r.cook})),
+        ...house_live.filter((r) => r.winner_party && r.winner_party !== 'D' && r.winner_party !== 'R').map((r) => ({race_id: r.race_id, group: 'Called other'})),
+        ...open.filter((r) => at(r.cook) === 3).map((r) => ({race_id: r.race_id, group: 'Toss-up'})),
+        ...open.filter((r) => at(r.cook) > 3).map((r) => ({race_id: r.race_id, group: r.cook})),
+        ...house_live.filter((r) => r.winner_party === 'R').map((r) => ({race_id: r.race_id, group: 'Called R'}))
+      ];
+      return seats.map((s, i) => ({seat: i + 1, ...s}));
+    }
+  });
+
+  const houseLean = (r) => r.winner_party === 'D' ? 'Called D' : r.winner_party === 'R' ? 'Called R' : r.winner_party ? 'Called other' : (r.cook || 'Not rated');
+
+  dash.draw('hstrip', (el) => {
+    const g = dash.data('house_strip'), h = dash.data('house_live');
+    settle(el, g.status);
+    if (g.status === 'error') return failLine(el);
+    if (g.status !== 'ok') { el.replaceChildren(); return; }
+    const byId = new Map((h.status === 'ok' ? h.data : []).map((r) => [r.race_id, r]));
+    const W = Math.max(280, el.clientWidth), H = 72, top = 22, bh = 30;
+    const x = d3.scaleBand(g.data.map((d) => d.seat), [0, W]).paddingInner(0.08);
+    const svg = d3.create('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('width', '100%').attr('role', 'img').attr('aria-label', 'House seats by party and rating');
+    svg.append('g').selectAll('rect').data(g.data).join('rect')
+      .attr('x', (d) => x(d.seat)).attr('y', top).attr('width', x.bandwidth()).attr('height', bh)
+      .attr('fill', (d) => FILL[d.group] || 'var(--color-border-line)');
+    const mid = x(218) - (x.step() - x.bandwidth()) / 2;
+    svg.append('line').attr('x1', mid).attr('x2', mid).attr('y1', top - 6).attr('y2', top + bh + 4).attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.5);
+    svg.append('text').attr('x', mid).attr('y', top - 9).attr('text-anchor', 'middle').attr('fill', 'var(--color-fg-muted)').attr('font-size', 12).text('218 for control');
+    svg.append('text').attr('x', 0).attr('y', H - 4).attr('fill', 'var(--ep-d3)').attr('font-size', 12).text('Democrats');
+    svg.append('text').attr('x', W).attr('y', H - 4).attr('text-anchor', 'end').attr('fill', 'var(--ep-r3)').attr('font-size', 12).text('Republicans');
+    const tip = document.createElement('div'); tip.className = 'ep-tip'; tip.hidden = true;
+    svg.selectAll('rect')
+      .on('pointermove', (event, d) => { const r = byId.get(d.race_id); showTip(tip, el, event, 'Seat ' + d.seat, r ? raceTip(r) : []); })
+      .on('pointerleave', () => { tip.hidden = true; });
+    el.replaceChildren(svg.node(), tip);
+  });
+
+  dash.draw('hgrid', (el) => {
+    const g = dash.data('house_live');
+    settle(el, g.status);
+    if (g.status === 'error') return failLine(el);
+    if (g.status !== 'ok') { el.replaceChildren(); return; }
+    const sel = dash.params().hdist || 'TX-15';
+    const by = d3.group(g.data, (r) => r.state);
+    const tip = document.createElement('div'); tip.className = 'ep-tip'; tip.hidden = true;
+    const blocks = [...by.keys()].sort().map((st) => {
+      const rows = by.get(st).slice().sort((a, b) => a.district - b.district);
+      const n = rows.length, cols = n > 24 ? 10 : n > 9 ? 6 : n > 4 ? 4 : n, s = 15;
+      const block = document.createElement('div'); block.className = 'ep-hstate';
+      const lab = document.createElement('span'); lab.textContent = st;
+      const svg = d3.create('svg').attr('width', cols * s).attr('height', Math.ceil(n / cols) * s)
+        .attr('viewBox', `0 0 ${cols * s} ${Math.ceil(n / cols) * s}`).attr('role', 'group').attr('aria-label', NAMES[st] + ' districts');
+      svg.selectAll('rect').data(rows).join('rect')
+        .attr('x', (d, i) => (i % cols) * s).attr('y', (d, i) => Math.floor(i / cols) * s)
+        .attr('width', s - 2).attr('height', s - 2).attr('rx', 2)
+        .attr('fill', (d) => FILL[houseLean(d)] || 'var(--color-border-line)')
+        .attr('stroke', (d) => d.race_id === sel ? 'var(--color-fg)' : 'none').attr('stroke-width', 2)
+        .attr('tabindex', 0).attr('aria-label', (d) => d.race_id + ': ' + houseLean(d))
+        .on('click', (event, d) => dash.setParams({hdist: d.race_id}))
+        .on('keydown', (event, d) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); dash.setParams({hdist: d.race_id}); } })
+        .on('pointermove', (event, d) => showTip(tip, el, event, d.race_id, raceTip(d)))
+        .on('pointerleave', () => { tip.hidden = true; });
+      block.append(lab, svg.node());
+      return block;
+    });
+    el.replaceChildren(...blocks, tip);
+  });
+
+  dash.draw('hd-name', (el) => {
+    const id = dash.params().hdist || 'TX-15';
+    const [st, d] = id.split('-');
+    el.textContent = (NAMES[st] || st) + (d === 'AL' ? ' at-large' : ' district ' + Number(d));
+  });
+
+  dash.draw('hdetail', (el) => {
+    const g = dash.data('house_live');
+    settle(el, g.status);
+    if (g.status === 'error') return failLine(el);
+    if (g.status !== 'ok') { el.replaceChildren(); return; }
+    const r = g.data.find((x) => x.race_id === (dash.params().hdist || 'TX-15'));
+    if (!r) { el.replaceChildren(); return; }
+    const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const card = mk('div', 'ep-race');
+    const h = mk('div', 'ep-race-h');
+    h.append(mk('span', 'ep-race-office', r.race_id));
+    const chip = mk('span', 'ep-chip', r.winner_party ? 'Called · ' + r.winner_party : (r.pct_reporting != null ? d3.format('.0f')(r.pct_reporting) + '% in' : 'Not called'));
+    if (r.winner_party) { chip.style.background = r.winner_party === 'D' ? 'var(--ep-d3)' : r.winner_party === 'R' ? 'var(--ep-r3)' : 'var(--color-fg-muted)'; chip.style.color = '#fff'; chip.style.borderColor = 'transparent'; }
+    h.append(chip); card.append(h);
+    const cand = mk('div', 'ep-cand');
+    const line = (party, cls, name, share) => { if (!name) return; cand.append(mk('span', 'ep-party ' + cls, party), mk('span', null, name + (r.winner === name ? ' ✓' : '')), mk('span', null, share != null ? pct(share) + '%' : '')); };
+    line('D', 'd', r.dem, r.dem_pct); line('R', 'r', r.rep, r.rep_pct); if (r.other) line('', 'o', r.other, r.other_pct);
+    card.append(cand);
+    if (r.dem_pct != null || r.rep_pct != null) {
+      const bar = mk('div', 'ep-bar');
+      [[r.dem_pct, 'var(--ep-d3)'], [r.other_pct, 'var(--color-fg-muted)'], [r.rep_pct, 'var(--ep-r3)']].forEach(([v, c]) => { if (v == null) return; const b = mk('div'); b.style.width = v + '%'; b.style.background = c; bar.append(b); });
+      card.append(bar);
+    }
+    if (r.incumbent) card.append(mk('div', 'ep-meta', 'Incumbent: ' + r.incumbent + (r.inc_party ? ' (' + r.inc_party + ')' : '')));
+    card.append(mk('div', 'ep-meta', 'Cook ' + (r.cook || '—') + ' · Inside Elections ' + (r.inside_elections || '—') + ' · Sabato ' + (r.sabato || '—') + (r.pvi ? ' · PVI ' + r.pvi : '')));
+    el.replaceChildren(card);
+  });
+
+  dash.draw('hwatch', (el) => {
+    const g = dash.data('house_live');
+    if (g.status !== 'ok') { el.replaceChildren(); return; }
+    const rows = g.data.filter((r) => r.cook && !r.cook.startsWith('Solid'))
+      .sort((a, b) => Math.abs(rank(a.cook) - 3) - Math.abs(rank(b.cook) - 3) || a.race_id.localeCompare(b.race_id));
+    el.replaceChildren(...rows.map((r) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = r.race_id;
+      [[r.race_id], [r.incumbent || '', 'ep-hide-narrow'], [r.dem || ''], [r.rep || ''], [r.cook], [r.status, 'ep-hide-narrow']].forEach(([t, cls]) => {
+        const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = t ?? ''; tr.append(td);
+      });
+      tr.addEventListener('click', () => { dash.setParams({hdist: r.race_id}); document.querySelectorAll('#house-district').forEach((s) => s.scrollIntoView({behavior: 'smooth', block: 'nearest'})); });
+      return tr;
+    }));
+  });
+
+  // Tabs
+  const showTab = (name) => {
+    document.querySelectorAll('[data-page]').forEach((p) => { p.hidden = p.dataset.page !== name; });
+    document.querySelectorAll('.ep-tabs [data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  };
+  document.querySelectorAll('.ep-tabs [data-tab]').forEach((b) => b.addEventListener('click', () => { showTab(b.dataset.tab); dash.setLink(b.dataset.tab); }));
+  if (location.hash === '#house') showTab('house');
 
   // Office toggle
   document.querySelectorAll('.ep-toggle button[data-office]').forEach((b) => {

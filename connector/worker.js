@@ -28,7 +28,7 @@ async function fetchRace(id) {
     headers: { 'User-Agent': UA, Accept: 'application/json' },
     cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true }
   });
-  if (!res.ok) return { id, error: `civicAPI ${res.status}` };
+  if (!res.ok) return { id, error: `civicAPI ${res.status}`, retry: res.status >= 500 };
   return { id, data: await res.json() };
 }
 
@@ -37,7 +37,15 @@ async function results(args, ctx) {
     .split(',').map((s) => s.trim()).filter((s) => /^\d+$/.test(s)).slice(0, MAX_IDS);
   if (!ids.length) throw new Error('No valid race ids given');
   if (String(args.ids).split(',').filter((x) => x.trim()).length > MAX_IDS) throw new Error(`At most ${MAX_IDS} race ids per call`);
-  const got = await Promise.all(ids.map((id) => fetchRace(id).catch((e) => ({ id, error: String(e) }))));
+  const got = await Promise.all(ids.map((id) => fetchRace(id).catch((e) => ({ id, error: String(e), retry: true }))));
+  // Retry server errors once, within the 50-subrequest budget of Workers Free.
+  let budget = 49 - ids.length;
+  await new Promise((r) => setTimeout(r, 400));
+  await Promise.all(got.map(async (g, i) => {
+    if (!g.retry || budget <= 0) return;
+    budget--;
+    got[i] = await fetchRace(g.id).catch((e) => ({ id: g.id, error: String(e) }));
+  }));
   const rows = [];
   const errors = [];
   for (const g of got) {
